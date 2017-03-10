@@ -2,33 +2,79 @@
 #include <boost/test/unit_test.hpp>
 #include <fakeit.hpp>
 
-struct SomeInterface
+using namespace fakeit;
+
+class IView
 {
-    virtual int foo(int) = 0;
-    virtual int bar(int, int) = 0;
+public:
+    virtual bool display(int) const = 0;
 };
 
-BOOST_AUTO_TEST_CASE(test_1)
+class Calculator
 {
-    using namespace fakeit;
+public:
+    Calculator(const IView& view)
+        : m_view(view)
+    {}
 
-    Mock<SomeInterface> mock;
-    // Stub a method to return a value once
-    When(Method(mock, foo)).Return(1);
+    void add(int a, int b)
+    {
+        if(!m_view.display(a + b))
+        {
+            throw std::runtime_error("could not display result");
+        }
+    }
+private:
+    const IView& m_view;
+};
 
-    // Stub multiple return values (The next two lines do exactly the same)
-    When(Method(mock, foo)).Return(1, 2, 3);
-    When(Method(mock, foo)).Return(1).Return(2).Return(3);
+class fakeit_env
+{
+public:
+    fakeit_env()
+        {}
 
-    // Return the same value many times (56 in this example)
-    When(Method(mock, foo)).Return(56_Times(1));
+    ~fakeit_env()
+        {}
 
-    // Return many values many times (First 100 calls will return 1, next 200 calls will return 2)
-    When(Method(mock, foo)).Return(100_Times(1), 200_Times(2));
+    Mock<IView> mockView{};
+    const IView& view{mockView.get()};
+    Calculator calc{view};
 
-    // Always return a value (The next two lines do exactly the same)
-    When(Method(mock, foo)).AlwaysReturn(1);
-    Method(mock, foo) = 1;
+};
 
-    BOOST_CHECK(true);
+BOOST_FIXTURE_TEST_CASE(stub_display_methods_return_value, fakeit_env)
+{
+    {
+        When(Method(mockView, display)).Return(true).Return(true);
+
+        BOOST_REQUIRE(view.display(0));
+        BOOST_REQUIRE(view.display(0));
+    }
+    {
+        When(Method(mockView, display)).Return(true, true);
+
+        BOOST_REQUIRE(view.display(0));
+        BOOST_REQUIRE(view.display(0));
+    }
+    {
+        When(Method(mockView, display)).Return(2_Times(true));
+
+        BOOST_REQUIRE(view.display(0));
+        BOOST_REQUIRE(view.display(0));
+    }
+    {
+        When(Method(mockView, display)).AlwaysReturn(true);
+
+        BOOST_REQUIRE(view.display(0));
+        BOOST_REQUIRE(view.display(0));
+        BOOST_REQUIRE(view.display(0));
+    }
+    {
+        Method(mockView, display) = false;
+
+        BOOST_REQUIRE(!view.display(0));
+        BOOST_REQUIRE(!view.display(0));
+        BOOST_REQUIRE(!view.display(0));
+    }
 }
