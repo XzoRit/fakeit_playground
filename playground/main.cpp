@@ -37,7 +37,6 @@ public:
 
     ~fakeit_env()
         {
-            // mockView.Reset();
         }
 
     Mock<IView> mockView{};
@@ -101,4 +100,25 @@ BOOST_FIXTURE_TEST_CASE(fake_view_methods, fakeit_env)
 
         calc.add(0, 0);
     }
+}
+
+BOOST_FIXTURE_TEST_CASE(argument_matching_params_to_view_methods, fakeit_env)
+{
+    Fake(Method(mockView, error));
+    When(Method(mockView, display).Using(Ge(0))).AlwaysReturn(true);
+
+    BOOST_REQUIRE(view.display(0));
+    BOOST_REQUIRE(view.display(1));
+    BOOST_REQUIRE(view.display(2));
+
+    When(Method(mockView, display).Using(Lt(0))).AlwaysReturn(false);
+
+    BOOST_REQUIRE(!view.display(-1));
+    BOOST_REQUIRE(!view.display(-2));
+    BOOST_REQUIRE(!view.display(-3));
+
+    calc.add(0, 0);
+    calc.add(-1, -2);
+
+    Verify(Method(mockView, error)).Once();
 }
