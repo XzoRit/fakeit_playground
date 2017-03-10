@@ -8,6 +8,7 @@ class IView
 {
 public:
     virtual bool display(int) const = 0;
+    virtual bool error(std::string) const = 0;
 };
 
 class Calculator
@@ -21,7 +22,7 @@ public:
     {
         if(!m_view.display(a + b))
         {
-            throw std::runtime_error("could not display result");
+            static_cast<void>(m_view.error("could not display result"));
         }
     }
 private:
@@ -35,7 +36,9 @@ public:
         {}
 
     ~fakeit_env()
-        {}
+        {
+            // mockView.Reset();
+        }
 
     Mock<IView> mockView{};
     const IView& view{mockView.get()};
@@ -76,5 +79,26 @@ BOOST_FIXTURE_TEST_CASE(stub_display_methods_return_value, fakeit_env)
         BOOST_REQUIRE(!view.display(0));
         BOOST_REQUIRE(!view.display(0));
         BOOST_REQUIRE(!view.display(0));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(fake_view_methods, fakeit_env)
+{
+    {
+        Fake(Method(mockView, display));
+        Fake(Method(mockView, error));
+
+        calc.add(0, 0);
+    }
+    {
+        When(Method(mockView, display)).AlwaysReturn();
+        When(Method(mockView, error)).AlwaysDo([](...){ return false; });
+
+        calc.add(0, 0);
+    }
+    {
+        Fake(Method(mockView, display), Method(mockView, error));
+
+        calc.add(0, 0);
     }
 }
