@@ -1,0 +1,17 @@
+import testing ;
+
+import boost ;
+boost.use-project 1.62 ;
+
+import testing ;
+
+run main.cpp
+    : "--log_level=all"
+    :
+    : <include>$(boost_include_path)
+      <include>../Fakeit/include
+      <include>../Fakeit/config/boost
+      <cxxflags>-std=c++14
+      <warnings>all
+      <library>/boost//unit_test_framework
+    ;

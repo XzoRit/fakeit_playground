@@ -1,0 +1,7 @@
+project
+    : default-build debug
+    : build-dir ./build
+    : requirements <cxxflags>-std=c++14
+    ;
+
+build-project playground ;
