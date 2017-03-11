@@ -33,16 +33,29 @@ class fakeit_env
 {
 public:
     fakeit_env()
-        {}
+    {}
 
     ~fakeit_env()
-        {
-        }
+    {}
 
     Mock<IView> mockView{};
     const IView& view{mockView.get()};
     Calculator calc{view};
 
+};
+
+class true_on_pos_false_on_neg : public fakeit_env
+{
+public:
+    true_on_pos_false_on_neg()
+    {
+        Fake(Method(mockView, error));
+        When(Method(mockView, display).Using(Ge(0))).AlwaysReturn(true);
+        When(Method(mockView, display).Using(Lt(0))).AlwaysReturn(false);
+    }
+
+    ~true_on_pos_false_on_neg()
+    {}
 };
 
 BOOST_FIXTURE_TEST_CASE(stub_display_methods_return_value, fakeit_env)
@@ -102,23 +115,43 @@ BOOST_FIXTURE_TEST_CASE(fake_view_methods, fakeit_env)
     }
 }
 
-BOOST_FIXTURE_TEST_CASE(argument_matching_params_to_view_methods, fakeit_env)
+BOOST_FIXTURE_TEST_CASE(argument_matching_params_to_view_methods, true_on_pos_false_on_neg)
 {
-    Fake(Method(mockView, error));
-    When(Method(mockView, display).Using(Ge(0))).AlwaysReturn(true);
-
     BOOST_REQUIRE(view.display(0));
     BOOST_REQUIRE(view.display(1));
     BOOST_REQUIRE(view.display(2));
 
-    When(Method(mockView, display).Using(Lt(0))).AlwaysReturn(false);
-
     BOOST_REQUIRE(!view.display(-1));
     BOOST_REQUIRE(!view.display(-2));
     BOOST_REQUIRE(!view.display(-3));
+}
+
+BOOST_FIXTURE_TEST_CASE(verifying_calls_to_view_methods, true_on_pos_false_on_neg)
+{
+    calc.add(0, 0);
+    calc.add(-1, -2);
+
+    Verify(Method(mockView, display)).Exactly(2_Times);
+    Verify(Method(mockView, error)).Once();
+}
+
+BOOST_FIXTURE_TEST_CASE(verifying_with_matcher, true_on_pos_false_on_neg)
+{
+    calc.add(0, 0);
+    calc.add(-1, -2);
+
+    Verify(Method(mockView, display).Matching([](auto a){ return a >= 0; })).Once();
+    Verify(Method(mockView, display).Matching([](auto a){ return a <  0; })).Once();
+    Verify(Method(mockView, error).Using("could not display result")).Once();
+}
+
+BOOST_FIXTURE_TEST_CASE(verifying_in_sequence, true_on_pos_false_on_neg)
+{
+    calc.add(0, 0);
+    calc.add(-1, -2);
 
     calc.add(0, 0);
     calc.add(-1, -2);
 
-    Verify(Method(mockView, error)).Once();
+    Verify((Method(mockView, display) * 2 + Method(mockView, error)) * 2);
 }
